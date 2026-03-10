@@ -3,194 +3,195 @@ import math
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from fpdf import FPDF
+from datetime import datetime
 
-# --- CONFIGURAÇÃO E ESTÉTICA DA PÁGINA ---
-st.set_page_config(page_title="Djalma Log - Orçamentos", page_icon="🚚", layout="centered")
+# --- CONFIGURAÇÃO VISUAL E TEMA ---
+st.set_page_config(page_title="Djalma Log Pro", page_icon="🚚", layout="wide")
 
-# Injeção de CSS para deixar o site com cara de Aplicativo Premium
+# CSS Avançado para dar cara de Aplicativo Moderno
 st.markdown("""
     <style>
-    /* Cor do botão principal de Calcular */
-    div.stButton > button:first-child {
+    .main { background-color: #f5f7f9; }
+    .stButton>button {
         background-color: #000033;
         color: white;
-        border-radius: 8px;
+        border-radius: 10px;
+        height: 3em;
         width: 100%;
-        font-weight: bold;
         border: none;
-        padding: 10px;
     }
-    div.stButton > button:first-child:hover {
-        background-color: #000066;
-        color: white;
+    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: #f0f2f6;
+        border-radius: 10px 10px 0px 0px;
+        padding: 10px 20px;
+        font-weight: bold;
     }
-    /* Esconder o menu superior do Streamlit e rodapé */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    /* Destacar os cabeçalhos com a cor da empresa */
-    h1, h2, h3 {
-        color: #000033;
+    .stTabs [aria-selected="true"] { background-color: #000033 !important; color: white !important; }
+    .metric-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- FUNÇÃO GERADORA DE PDF ---
-def criar_pdf_orcamento(origem, destino, volume, viagens, ajudantes, tipo_frete, valor_total):
+# --- FUNÇÕES DE APOIO ---
+def gerar_pdf_v3(dados):
     pdf = FPDF()
     pdf.add_page()
-    
-    # Cabeçalho
     pdf.set_font("Arial", 'B', 16)
-    pdf.set_text_color(0, 0, 51) # Azul escuro
-    pdf.cell(200, 10, txt="DJALMA LOG FRETES E MUDANCAS", ln=True, align='C')
-    
-    pdf.set_font("Arial", '', 10)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(200, 6, txt="CNPJ: 12.214.673/0001-23 | Telefone: (86) 98862-9083", ln=True, align='C')
-    pdf.ln(10) # Pular linha
-    
-    # Corpo do Orçamento
-    pdf.set_font("Arial", 'B', 12)
+    pdf.set_text_color(0, 0, 51)
+    pdf.cell(200, 10, txt="DJALMA LOG - ORÇAMENTO OFICIAL", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", '', 11)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(200, 10, txt="RESUMO DO ORCAMENTO", ln=True)
-    
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(200, 8, txt=f"Origem: {origem} | Destino: {destino}", ln=True)
-    pdf.cell(200, 8, txt=f"Volume Estimado da Carga: {volume:.2f} m3", ln=True)
-    pdf.cell(200, 8, txt=f"Caminhoes / Viagens: {viagens}", ln=True)
-    pdf.cell(200, 8, txt=f"Mao de Obra Especializada: {ajudantes} ajudantes", ln=True)
-    pdf.cell(200, 8, txt=f"Categoria de Frete: {tipo_frete}", ln=True)
+    pdf.cell(200, 8, txt=f"Data da Mudança: {dados['data']}", ln=True)
+    pdf.cell(200, 8, txt=f"Origem: {dados['origem']} | Destino: {dados['destino']}", ln=True)
+    pdf.cell(200, 8, txt=f"Descrição: {dados['obs']}", ln=True)
     pdf.ln(5)
-    
-    # Valor Final
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="DETALHES LOGÍSTICOS:", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(200, 8, txt=f"- Volume Estimado: {dados['volume']:.2f} m3", ln=True)
+    pdf.cell(200, 8, txt=f"- Frota: {dados['viagens']} viagem(ns) no VW Baú", ln=True)
+    pdf.cell(200, 8, txt=f"- Equipe: {dados['ajudantes']} ajudantes", ln=True)
+    pdf.ln(10)
     pdf.set_font("Arial", 'B', 14)
-    pdf.set_text_color(0, 102, 0) # Verde para o valor
-    pdf.cell(200, 10, txt=f"VALOR TOTAL DO INVESTIMENTO: R$ {valor_total:.2f}", ln=True)
-    
-    pdf.ln(15)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.set_text_color(100, 100, 100)
-    pdf.cell(200, 10, txt='"Compromisso com qualidade, seguranca e pontualidade."', ln=True, align='C')
-    
+    pdf.set_text_color(0, 100, 0)
+    pdf.cell(200, 10, txt=f"VALOR TOTAL ESTIMADO: R$ {dados['total']:.2f}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- BANCO DE DADOS DE CUBAGEM ---
-CATALOGO_MOVEIS = {
-    "Caixa Pequena (Livros)": 0.15,
-    "Caixa Média (Louças)": 0.25,
-    "Caixa Grande (Roupas)": 0.40,
-    "Geladeira / Freezer": 1.33,
-    "Fogão / Cooktop": 0.62,
-    "Máquina de Lavar Roupas": 0.67,
-    "Sofá 2 Lugares": 0.97,
-    "Sofá 3 Lugares": 1.42,
-    "Cama de Casal (Padrão/Box)": 1.40,
-    "Guarda-Roupa 3 Portas": 1.25,
-    "Mesa de Jantar": 1.43,
-    "Moto": 3.60
-}
+# --- BANCO DE DATAS (Simulação de Agenda) ---
+# Em um sistema real, isso viria de um Banco de Dados
+DATAS_OCUPADAS = ["2026-03-15", "2026-03-20", "2026-03-25"]
 
-def obter_coordenadas(cidade):
-    geolocator = Nominatim(user_agent="djalmalog_web_app")
-    try:
-        local = geolocator.geocode(cidade + ", Brasil")
-        if local: return (local.latitude, local.longitude)
-    except:
-        return None
-    return None
+# --- CONTEÚDO PRINCIPAL (ABAS) ---
+tab_orc, tab_agenda, tab_contato = st.tabs(["📝 Novo Orçamento", "📅 Agenda Disponível", "📞 Central de Atendimento"])
 
-# --- INTERFACE DO SITE ---
-st.title("🚚 Djalma Log: Orçamento Expresso")
-st.markdown("---")
+with tab_orc:
+    st.subheader("Solicite seu Orçamento em Minutos")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        origem = st.text_input("📍 Ponto de Partida", placeholder="Cidade, UF")
+        data_mudanca = st.date_input("🗓️ Data pretendida", min_value=datetime.now())
+    with col_b:
+        destino = st.text_input("🏁 Destino Final", placeholder="Cidade, UF")
+        tipo_mudanca = st.selectbox("🏠 Tipo da Mudança", ["Residencial", "Comercial", "Apenas Itens Avulsos"])
 
-st.subheader("1. Rota da Mudança 📍")
-col1, col2 = st.columns(2)
-with col1:
-    cidade_origem = st.text_input("Cidade de Origem (ex: Teresina, PI)")
-with col2:
-    cidade_destino = st.text_input("Cidade de Destino (ex: Timon, MA)")
+    st.markdown("### 📦 O que vamos transportar?")
+    
+    # Inventário Organizado por Categorias
+    exp_sala = st.expander("Sala e Escritório")
+    exp_quarto = st.expander("Quartos e Camas")
+    exp_cozinha = st.expander("Cozinha e Área de Serviço")
+    exp_outros = st.expander("✨ Outros Itens (Personalizado)", expanded=True)
 
-st.markdown("---")
-st.subheader("2. Inventário de Carga 📦")
-st.write("Adicione a quantidade dos itens abaixo para dimensionarmos o caminhão:")
+    vol_total = 0.0
+    
+    with exp_sala:
+        s1, s2, s3 = st.columns(3)
+        vol_total += s1.number_input("Sofá 3 Lug", 0) * 1.42
+        vol_total += s2.number_input("Painel/Rack", 0) * 0.50
+        vol_total += s3.number_input("Mesa Jantar", 0) * 1.40
+        
+    with exp_quarto:
+        q1, q2, q3 = st.columns(3)
+        vol_total += q1.number_input("Cama Casal", 0) * 1.50
+        vol_total += q2.number_input("Guarda-Roupa", 0) * 1.80
+        vol_total += q3.number_input("Cama Solteiro", 0) * 0.90
 
-# Layout mais bonito para os botões usando colunas
-volume_total = 0.0
-moveis_cols = st.columns(3)
-idx = 0
-for nome_movel, m3 in CATALOGO_MOVEIS.items():
-    with moveis_cols[idx % 3]:
-        qtd = st.number_input(nome_movel, min_value=0, max_value=20, step=1)
-        volume_total += qtd * m3
-    idx += 1
+    with exp_cozinha:
+        c1, c2, c3 = st.columns(3)
+        vol_total += c1.number_input("Geladeira", 0) * 1.30
+        vol_total += c2.number_input("Fogão", 0) * 0.60
+        vol_total += c3.number_input("Máq. Lavar", 0) * 0.70
 
-st.markdown("---")
+    with exp_outros:
+        st.write("Não achou o que precisava? Adicione aqui:")
+        item_extra_nome = st.text_input("Descrição do(s) item(s) extra(s)")
+        col_ex1, col_ex2 = st.columns(2)
+        qtd_extra = col_ex1.number_input("Quantidade", 0)
+        m3_extra = col_ex2.selectbox("Tamanho aproximado", 
+                                     [0.2, 0.5, 1.0, 2.0], 
+                                     format_func=lambda x: f"{x} m3 (Pequeno a Grande)")
+        vol_total += (qtd_extra * m3_extra)
+        observacoes = st.text_area("Observações importantes (ex: tem escada, móvel planejado, etc.)")
 
-# --- BOTÃO DE CÁLCULO ---
-if st.button("CALCULAR FRETE", type="primary"):
-    if not cidade_origem or not cidade_destino:
-        st.error("Por favor, preencha as cidades de origem e destino.")
-    elif volume_total == 0:
-        st.error("Por favor, adicione pelo menos um item ao inventário.")
-    else:
-        with st.spinner("Analisando rotas e dimensionando a frota..."):
-            coord_origem = obter_coordenadas(cidade_origem)
-            coord_destino = obter_coordenadas(cidade_destino)
-            
-            if not coord_origem or not coord_destino:
-                st.error("Não foi possível encontrar as cidades no GPS. Verifique a ortografia.")
-            else:
-                distancia_ida = geodesic(coord_origem, coord_destino).kilometers * 1.25
+    if st.button("GERAR ORÇAMENTO PROFISSIONAL"):
+        if not origem or not destino or vol_total == 0:
+            st.warning("Preencha a rota e adicione pelo menos um item.")
+        else:
+            with st.spinner("Processando logística..."):
+                geolocator = Nominatim(user_agent="djalmalog_v3")
+                loc1, loc2 = geolocator.geocode(origem + ", Brasil"), geolocator.geocode(destino + ", Brasil")
                 
-                capacidade_caminhao = 40.0
-                taxa_minima = 350.00
-                valor_km = 3.50
-                diaria_ajudante = 100.00
-                
-                # TRAVA COMERCIAL
-                if volume_total > capacidade_caminhao and distancia_ida > 50:
-                    st.warning(f"⚠️ **Carga Especial Detectada ({volume_total:.2f} m³)**")
-                    st.write("O volume excede a capacidade de um caminhão padrão para longa distância.")
-                    link_wpp = "https://wa.me/5586988629083?text=Olá!%20Minha%20mudança%20deu%20carga%20especial."
-                    st.link_button("Negociar Frota via WhatsApp", link_wpp)
+                if loc1 and loc2:
+                    dist = geodesic((loc1.latitude, loc1.longitude), (loc2.latitude, loc2.longitude)).kilometers * 1.25
+                    viagens = math.ceil(vol_total / 40.0)
+                    ajudantes = max(2, math.ceil(vol_total / 12.0))
                     
-                else:
-                    num_viagens = math.ceil(volume_total / capacidade_caminhao)
-                    if num_viagens == 0: num_viagens = 1
-                    num_ajudantes = max(2, math.ceil(volume_total / 10.0))
-                    
-                    if distancia_ida <= 50:
-                        custo_rodagem = taxa_minima * num_viagens
-                        tipo_frete = "Local / Metropolitano"
+                    if dist <= 50:
+                        frete = 350.0 * viagens
+                        tipo_f = "Local"
                     else:
-                        distancia_cobrada = math.ceil(distancia_ida / 50.0) * 50
-                        custo_rodagem = (distancia_cobrada * 2) * num_viagens * valor_km
-                        tipo_frete = "Interestadual / Longa Distância"
+                        frete = (math.ceil(dist / 50.0) * 50 * 2) * viagens * 3.50
+                        tipo_f = "Longa Distância"
                     
-                    custo_equipe = num_ajudantes * diaria_ajudante
-                    valor_final = custo_rodagem + custo_equipe
+                    total = frete + (ajudantes * 100.0)
                     
-                    # Interface de Sucesso
-                    st.success("Orçamento gerado com sucesso!")
-                    
-                    colA, colB = st.columns(2)
-                    with colA:
-                        st.info(f"**📦 Volume Total:** {volume_total:.2f} m³\n\n**🚛 Frota:** {num_viagens} caminhão(ões)\n\n**👷 Equipe:** {num_ajudantes} pessoas")
-                    with colB:
-                        st.success(f"**💰 VALOR FINAL:**\n\n### R$ {valor_final:.2f}\n\n*Categoria: {tipo_frete}*")
-                    
-                    st.balloons()
-                    
-                    # --- BOTÃO MÁGICO DO PDF ---
+                    # Dashboard de Resultado
                     st.markdown("---")
-                    pdf_bytes = criar_pdf_orcamento(
-                        cidade_origem, cidade_destino, volume_total, num_viagens, 
-                        num_ajudantes, tipo_frete, valor_final
-                    )
+                    res_col1, res_col2, res_col3 = st.columns(3)
+                    res_col1.metric("Distância", f"{dist:.0f} km")
+                    res_col2.metric("Equipe", f"{ajudantes} pessoas")
+                    res_col3.metric("Total", f"R$ {total:.2f}")
+
+                    dados_orc = {
+                        "origem": origem, "destino": destino, "volume": vol_total,
+                        "viagens": viagens, "ajudantes": ajudantes, "total": total,
+                        "data": data_mudanca.strftime("%d/%m/%Y"), "obs": observacoes,
+                        "tipo_frete": tipo_f
+                    }
                     
-                    st.download_button(
-                        label="📄 Baixar Orçamento Oficial em PDF",
-                        data=pdf_bytes,
-                        file_name=f"Orcamento_DjalmaLog.pdf",
-                        mime="application/pdf",
-                    )
+                    pdf_bytes = gerar_pdf_v3(dados_orc)
+                    st.download_button("📩 BAIXAR PDF OFICIAL", pdf_bytes, "DjalmaLog_Orcamento.pdf", "application/pdf")
+                else:
+                    st.error("Erro no GPS. Verifique os nomes das cidades.")
+
+with tab_agenda:
+    st.subheader("Gerenciador de Disponibilidade")
+    st.write("Confira os dias em que nossa equipe está livre para sua mudança.")
+    
+    col_cal, col_info = st.columns([2, 1])
+    
+    with col_cal:
+        # Mostra o calendário apenas para visualização
+        st.date_input("Consulte a data no calendário:", datetime.now())
+        
+    with col_info:
+        st.info("🟢 Dias Disponíveis: Segunda a Sábado")
+        st.error("🔴 Dias Ocupados: 15/03, 20/03, 25/03")
+        st.write("---")
+        st.write("**Horário de Funcionamento:**")
+        st.write("07:30 às 18:00")
+
+with tab_contato:
+    st.subheader("Canais de Atendimento")
+    st.write("Fale diretamente com o proprietário ou visite nossas redes.")
+    
+    c_wpp, c_insta = st.columns(2)
+    with c_wpp:
+        st.success("✅ WhatsApp: (86) 98862-9083")
+        st.link_button("Abrir Conversa no WhatsApp", "https://wa.me/5586988629083")
+    with c_insta:
+        st.info("📸 Instagram: @djalmalog")
+        st.link_button("Ver Perfil no Instagram", "https://instagram.com/djalmalog")
+
+# --- RODAPÉ ---
+st.markdown("---")
+st.caption("© 2026 Djalma Log - Inteligência em Logística. Desenvolvido por Tiago Pinheiro.")
