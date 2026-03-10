@@ -3,3 +3,4 @@ geopy
 fpdf
 pandas
 plotly
+st-gsheets-connection
