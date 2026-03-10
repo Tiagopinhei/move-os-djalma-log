@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
+from geopy.geocoders import ArcGIS
 from fpdf import FPDF
 import base64
 
@@ -176,16 +177,15 @@ CATALOGO_TECNICO = {
     }
 }
 
-# 2.2 MOTOR DE GPS REFORMULADO (BLINDADO CONTRA ERROS)
+# 2.2 MOTOR DE GPS CORPORATIVO (ARCGIS)
 def obter_logistica_rota(origem, destino):
-    # O user_agent precisa ser único. Vamos usar o seu nome para o servidor liberar o acesso.
-    geolocator = Nominatim(user_agent="djalmalog_tiago_ufpi_v6")
+    # Trocamos o Nominatim pelo ArcGIS, que é muito mais estável na nuvem
+    geolocator = ArcGIS()
     
     try:
-        # Adicionamos o país explicitamente para facilitar a busca do GPS
-        # O timeout de 10 segundos dá tempo para o servidor responder
-        loc1 = geolocator.geocode(f"{origem}, Brazil", timeout=10)
-        loc2 = geolocator.geocode(f"{destino}, Brazil", timeout=10)
+        # A busca do ArcGIS é mais inteligente e entende melhor o formato brasileiro
+        loc1 = geolocator.geocode(f"{origem}, Brasil", timeout=15)
+        loc2 = geolocator.geocode(f"{destino}, Brasil", timeout=15)
         
         if loc1 and loc2:
             coord1 = (loc1.latitude, loc1.longitude)
@@ -194,19 +194,10 @@ def obter_logistica_rota(origem, destino):
             # Cálculo da distância com o fator de correção de 25% para estradas reais
             distancia_real = geodesic(coord1, coord2).kilometers * 1.25
             return round(distancia_real, 2)
-        
-        # Se não achar com "Brazil", tentamos uma busca mais bruta
         else:
-            loc1_alt = geolocator.geocode(origem, timeout=10)
-            loc2_alt = geolocator.geocode(destino, timeout=10)
-            if loc1_alt and loc2_alt:
-                dist_alt = geodesic((loc1_alt.latitude, loc1_alt.longitude), (loc2_alt.latitude, loc2_alt.longitude)).kilometers * 1.25
-                return round(dist_alt, 2)
-                
-        return None
+            return None
     except Exception as e:
-        # Se der erro de conexão, o sistema avisa no terminal mas não trava
-        print(f"Erro de conexão GPS: {e}")
+        print(f"Erro no motor ArcGIS: {e}")
         return None
 # 2.3 GERADOR DE DOCUMENTO OFICIAL (PDF)
 # Cria um PDF profissional com a identidade da Djalma Log.
@@ -598,5 +589,6 @@ def atualizar_banco_dados(nova_data, novo_status):
     # Aqui o código enviaria a nova linha para o Google Sheets
     # Para ativar isso, precisamos das chaves de API do Google
     st.sidebar.info(f"Registrando {nova_data} como {novo_status}...")
+
 
 
