@@ -489,31 +489,22 @@ if st.button("CALCULAR ORÇAMENTO FINAL E GERAR PROPOSTA"):
                 
                 st.balloons()
                 # ==============================================================================
-# BLOCO 5: DOWNLOAD DE PROPOSTA, AGENDA E FINALIZAÇÃO (PÓS-CÁLCULO)
 # ==============================================================================
-# Este bloco encerra o fluxo de orçamento, gera o arquivo PDF físico e 
-# fornece os canais de suporte e agenda da transportadora.
+# BLOCO 5: ÁREA DO GESTOR E CONTATO DIRETO
 # ==============================================================================
 
-# 5.1 GERAÇÃO E DOWNLOAD DO PDF OFICIAL
-# Verificamos se existem dados na sessão (gerados no Bloco 4) para criar o botão.
-if 'dados_proposta' in st.session_state:
-    st.markdown("### 📄 Documentação da Proposta")
-    st.write("Clique no botão abaixo para baixar o orçamento oficial em formato PDF. Este documento pode ser enviado via WhatsApp para confirmação da reserva.")
+# 5.1 LOGIN ADMINISTRATIVO (NA SIDEBAR)
+with st.sidebar:
+    st.divider()
+    st.subheader("🔑 Área do Gestor")
+    senha = st.text_input("Senha de Acesso", type="password")
     
-    # Geramos os bytes do PDF usando a função do Bloco 2
-    pdf_final_bytes = exportar_pdf_final(st.session_state['dados_proposta'])
+    # Senha simples para você e seu pai (mude depois)
+    acesso_admin = (senha == "djalma2026") 
     
-    # Botão de Download Estilizado
-    st.download_button(
-        label="📥 BAIXAR ORÇAMENTO OFICIAL (PDF)",
-        data=pdf_final_bytes,
-        file_name=f"Orcamento_DjalmaLog_{st.session_state['dados_proposta']['origem']}.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
-    
-    st.info("⚠️ **Nota de Engenharia:** O valor acima é uma estimativa baseada em cubagem teórica. A Djalma Log recomenda uma vistoria por foto ou vídeo para o fechamento final.")
+    if acesso_admin:
+        st.success("Acesso Liberado, Tiago!")
+        st.write("Agora você pode editar a agenda no painel principal.")
 
 # 5.2 SEÇÃO DE SUPORTE E AGENDA (PÓS-ORÇAMENTO)
 st.markdown("<br><br>", unsafe_allow_html=True)
@@ -522,51 +513,75 @@ st.markdown("---")
 col_footer1, col_footer2 = st.columns(2)
 
 with col_footer1:
-    st.subheader("📅 Agenda e Disponibilidade")
-    st.write("Confira abaixo os períodos de maior demanda e planeje sua mudança com antecedência.")
+    st.subheader("📅 Agenda de Disponibilidade")
     
-    # Simulação de Agenda (Pode ser conectada a um banco de dados no futuro)
-    hoje = datetime.now()
-    dias_ocupados = [
-        (hoje + timedelta(days=2)).strftime("%d/%m"),
-        (hoje + timedelta(days=5)).strftime("%d/%m"),
-        (hoje + timedelta(days=8)).strftime("%d/%m")
-    ]
+    # Se o admin estiver logado, ele pode editar as datas
+    if acesso_admin:
+        st.info("🛠️ Modo Edição Ativo")
+        novas_datas = st.text_input("Atualizar Datas Ocupadas (separe por vírgula)", "12/03, 15/03, 18/03")
+        if st.button("Salvar Alterações na Agenda"):
+            st.session_state['agenda_txt'] = novas_datas
+            st.success("Agenda atualizada!")
     
-    st.warning(f"🚫 **Datas Ocupadas nesta Quinzena:** {', '.join(dias_ocupados)}")
+    # Exibição para o cliente
+    agenda_atual = st.session_state.get('agenda_txt', "12/03, 15/03, 18/03")
+    st.warning(f"🚫 **Datas Ocupadas nesta Quinzena:** {agenda_atual}")
     st.success("🟢 **Demais datas:** Disponibilidade para saída imediata com o VW Baú.")
-    
-    # Calendário meramente visual para o cliente
-    st.date_input("Consulte uma data específica:", min_value=hoje, key="calendar_consult")
+    st.date_input("Consulte sua data no calendário:", min_value=datetime.now())
 
 with col_footer2:
-    st.subheader("📞 Central de Atendimento")
-    st.write("Dúvidas sobre embalagem de itens frágeis ou desmontagem técnica?")
+    st.subheader("📞 Fale com o Djalma")
+    st.write("Dúvidas sobre o frete? Chame agora mesmo no canal oficial:")
     
-    # Cards de Contato Direto
+    # WhatsApp Direto (Sem intermediário)
+    link_wpp_direto = "https://wa.me/5586988629083?text=Olá%20Djalma!%20Gerei%20um%20orçamento%20pelo%20site%20e%20quero%20fechar."
+    
     st.markdown(f"""
-        <div style="background-color:white; border-left: 5px solid #25d366; padding:15px; border-radius:10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
-            <p style="margin:0; font-weight:bold; color:#25d366;">WHATSAPP OFICIAL</p>
-            <p style="margin:0; font-size:18px;">(86) 98862-9083</p>
-        </div>
+        <a href="{link_wpp_direto}" target="_blank" style="text-decoration: none;">
+            <div style="background-color:#25d366; color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:18px;">
+                💬 CHAMAR NO WHATSAPP AGORA
+            </div>
+        </a>
         <br>
-        <div style="background-color:white; border-left: 5px solid #E1306C; padding:15px; border-radius:10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
-            <p style="margin:0; font-weight:bold; color:#E1306C;">INSTAGRAM</p>
-            <p style="margin:0; font-size:18px;">@djalmalog</p>
-        </div>
+        <a href="https://instagram.com/djalmalog" target="_blank" style="text-decoration: none;">
+            <div style="background-color:#E1306C; color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:18px;">
+                📸 SEGUIR NO INSTAGRAM
+            </div>
+        </a>
     """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.link_button("🚀 Falar com Consultor Agora", "https://wa.me/5586988629083?text=Olá!%20Acabei%20de%20gerar%20um%20orçamento%20pelo%20MoveOS%20e%20gostaria%20de%20confirmar.")
 
-# 5.3 RODAPÉ INSTITUCIONAL (FOOTER)
+# Rodapé Institucional
 st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown("""
+st.markdown(f"""
     <div style="text-align:center; color:#999; font-size:12px; border-top: 1px solid #ddd; padding-top:20px;">
-        <p><b>Djalma Log Pro V6.0</b> - Sistema de Gestão e Orçamentação Logística</p>
-        <p>Desenvolvido por Tiago Pinheiro | UFPI Engenharia Mecânica</p>
-        <p>© 2026 Teresina, Piauí - Brasil</p>
+        <p><b>MoveOS 6.0</b> | Sistema de Gestão Djalma Log</p>
+        <p>Desenvolvido por Tiago Pinheiro - UFPI Engenharia Mecânica</p>
     </div>
 """, unsafe_allow_html=True)
+# ==============================================================================
+# BLOCO 6: INTEGRAÇÃO COM GOOGLE SHEETS (BANCO DE DADOS)
+# ==============================================================================
+from streamlit_gsheets import GSheetsConnection
 
-# FIM DO CÓDIGO
+# 6.1 CRIANDO A CONEXÃO
+# O Streamlit vai procurar as credenciais nos "Secrets" que vamos configurar.
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    # Lendo a aba de "Agenda" da planilha
+    # Certifique-se de que sua planilha tem uma coluna chamada 'Data' e outra 'Status'
+    df_agenda = conn.read(worksheet="Agenda", ttl="5m") 
+    
+    # Transformando os dados em uma lista para o site usar
+    datas_bloqueadas = df_agenda[df_agenda['Status'] == 'Ocupado']['Data'].tolist()
+except:
+    # Caso a planilha ainda não esteja configurada, usamos dados padrão para o site não cair
+    datas_bloqueadas = ["12/03", "15/03", "18/03"]
+    st.sidebar.warning("⚠️ Conexão com Banco de Dados pendente.")
+
+# 6.2 FUNÇÃO PARA O GESTOR ATUALIZAR A PLANILHA
+def atualizar_banco_dados(nova_data, novo_status):
+    # Aqui o código enviaria a nova linha para o Google Sheets
+    # Para ativar isso, precisamos das chaves de API do Google
+    st.sidebar.info(f"Registrando {nova_data} como {novo_status}...")
+
