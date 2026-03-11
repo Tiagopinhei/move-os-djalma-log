@@ -33,10 +33,5 @@ O projeto foi construído utilizando as seguintes tecnologias e bibliotecas:
 * **Visualização de Dados:** `plotly.graph_objects`
 
 ## 🚀 Como Executar o Projeto Localmente
-
-Siga os passos abaixo para rodar o sistema na sua máquina:
-
-1. **Clone o repositório:**
-   ```bash
-   git clone [https://github.com/seu-usuario/move-os-djalma-log.git](https://github.com/seu-usuario/move-os-djalma-log.git)
-   cd move-os-djalma-log
+Acessar link:
+https://move-os-djalma-log.streamlit.app/
